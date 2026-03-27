@@ -7,11 +7,14 @@ import com.ecommerce.productcart.repository.ProductRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.math.BigDecimal;
 import java.util.List;
 
 @Configuration
 public class SeedConfig {
+    private static final Logger logger = LoggerFactory.getLogger(SeedConfig.class);
 
     @Bean
     CommandLineRunner initDatabase(RoleRepository roleRepository, ProductRepository productRepository) {
@@ -20,9 +23,9 @@ public class SeedConfig {
             if (roleRepository.count() == 0) {
                 roleRepository.save(Role.builder().name(Role.RoleType.ROLE_USER).build());
                 roleRepository.save(Role.builder().name(Role.RoleType.ROLE_ADMIN).build());
-                System.out.println("✅ SYSTEM: USER and ADMIN Roles have been initialized in Database.");
+                logger.info("Roles initialized: USER and ADMIN seeded in database.");
             } else {
-                System.out.println("ℹ️ SYSTEM: Roles already exist. Skipping seed.");
+                logger.info("Roles already exist. Skipping seed.");
             }
 
             // Seed Products

@@ -32,7 +32,7 @@ public class CartService {
     public Cart getCartByUser(User user) {
         return cartRepository.findByUser(user)
                 .orElseGet(() -> {
-                    Cart newCart = Cart.builder().user(user).build();
+                    Cart newCart = Cart.builder().user(user).items(new java.util.HashSet<>()).build();
                     return cartRepository.save(newCart);
                 });
     }
@@ -99,11 +99,11 @@ public class CartService {
     @Transactional
     public void clearCart(Cart cart) {
         if (cart == null || cart.getId() == null) {
-            return; // Guard against NPE checks
+            return;
         }
         if (cart.getItems() != null) {
-            cart.getItems().clear(); // Let Hibernate cascade delete handle this
+            cart.getItems().clear();
         }
-        cartRepository.save(cart);
+        // Hibernate persists changes automatically via @Transactional
     }
 }

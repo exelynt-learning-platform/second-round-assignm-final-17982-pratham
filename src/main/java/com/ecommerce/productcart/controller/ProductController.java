@@ -3,8 +3,8 @@ package com.ecommerce.productcart.controller;
 import com.ecommerce.productcart.model.Product;
 import com.ecommerce.productcart.service.ProductService;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,8 +15,11 @@ import java.util.List;
 @CrossOrigin(origins = "http://localhost:5173", maxAge = 3600)
 public class ProductController {
 
-    @Autowired
-    private ProductService productService;
+    private final ProductService productService;
+
+    public ProductController(ProductService productService) {
+        this.productService = productService;
+    }
 
     @GetMapping
     public List<Product> getAllProducts() {

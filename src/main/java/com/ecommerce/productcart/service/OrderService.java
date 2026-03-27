@@ -30,7 +30,7 @@ public class OrderService {
     @Transactional
     public Order createOrderFromCart(User user, String shippingAddress) {
         Cart cart = cartService.getCartByUser(user);
-        if (cart.getItems().isEmpty()) {
+        if (cart.getItems() == null || cart.getItems().isEmpty()) {
             throw new RuntimeException("Cannot create order from empty cart");
         }
 
