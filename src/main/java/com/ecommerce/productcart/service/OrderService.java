@@ -2,6 +2,7 @@ package com.ecommerce.productcart.service;
 
 import com.ecommerce.productcart.model.*;
 import com.ecommerce.productcart.repository.OrderRepository;
+import com.ecommerce.productcart.repository.ProductRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,11 +17,15 @@ import java.util.stream.Collectors;
 @Service
 public class OrderService {
 
-    @Autowired
-    private OrderRepository orderRepository;
+    private final OrderRepository orderRepository;
+    private final CartService cartService;
+    private final ProductRepository productRepository;
 
-    @Autowired
-    private CartService cartService;
+    public OrderService(OrderRepository orderRepository, CartService cartService, ProductRepository productRepository) {
+        this.orderRepository = orderRepository;
+        this.cartService = cartService;
+        this.productRepository = productRepository;
+    }
 
     @Transactional
     public Order createOrderFromCart(User user, String shippingAddress) {
@@ -50,6 +55,7 @@ public class OrderService {
                         throw new RuntimeException("Insufficient stock for product: " + product.getName());
                     }
                     product.setStockQuantity(product.getStockQuantity() - cartItem.getQuantity());
+                    productRepository.save(product);
 
                     return OrderItem.builder()
                             .order(order)

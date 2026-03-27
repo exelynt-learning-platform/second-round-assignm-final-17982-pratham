@@ -21,3 +21,4 @@ frontend/build/
 /.vscode/
 *.log
 *.tmp
+.metadata/

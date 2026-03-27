@@ -14,17 +14,20 @@ import java.util.Optional;
 @Service
 public class CartService {
 
-    @Autowired
-    private CartRepository cartRepository;
+    private final CartRepository cartRepository;
+    private final CartItemRepository cartItemRepository;
+    private final ProductRepository productRepository;
+    private final UserRepository userRepository;
 
-    @Autowired
-    private CartItemRepository cartItemRepository;
-
-    @Autowired
-    private ProductRepository productRepository;
-
-    @Autowired
-    private UserRepository userRepository;
+    public CartService(CartRepository cartRepository, 
+                       CartItemRepository cartItemRepository, 
+                       ProductRepository productRepository, 
+                       UserRepository userRepository) {
+        this.cartRepository = cartRepository;
+        this.cartItemRepository = cartItemRepository;
+        this.productRepository = productRepository;
+        this.userRepository = userRepository;
+    }
 
     public Cart getCartByUser(User user) {
         return cartRepository.findByUser(user)
@@ -97,8 +100,12 @@ public class CartService {
 
     @Transactional
     public void clearCart(Cart cart) {
-        cartItemRepository.deleteByCartIdNative(cart.getId());
-        cart.getItems().clear();
+        if (cart == null || cart.getId() == null) {
+            return; // Guard against NPE checks
+        }
+        if (cart.getItems() != null) {
+            cart.getItems().clear(); // Let Hibernate cascade delete handle this
+        }
         cartRepository.save(cart);
     }
 }
