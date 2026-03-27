@@ -75,7 +75,6 @@ public class CartService {
 
         if (quantity <= 0) {
             cart.removeItem(cartItem);
-            cartItemRepository.delete(cartItem);
         } else {
             cartItem.setQuantity(quantity);
             cartItemRepository.save(cartItem);
@@ -93,7 +92,6 @@ public class CartService {
                 .orElseThrow(() -> new RuntimeException("Item not in cart"));
 
         cart.removeItem(cartItem);
-        cartItemRepository.delete(cartItem);
 
         return cartRepository.save(cart);
     }

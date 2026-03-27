@@ -3,13 +3,9 @@ package com.ecommerce.productcart.controller;
 import com.ecommerce.productcart.dto.CartDto;
 import com.ecommerce.productcart.dto.CartItemDto;
 import com.ecommerce.productcart.model.Cart;
-import com.ecommerce.productcart.model.User;
-import com.ecommerce.productcart.repository.UserRepository;
 import com.ecommerce.productcart.service.CartService;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.ecommerce.productcart.util.SecurityUtils;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -21,40 +17,35 @@ import java.util.stream.Collectors;
 @CrossOrigin(origins = "http://localhost:5173", maxAge = 3600)
 public class CartController {
 
-    @Autowired
-    private CartService cartService;
+    private final CartService cartService;
+    private final SecurityUtils securityUtils;
 
-    @Autowired
-    private UserRepository userRepository;
-
-    private User getCurrentUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String username = authentication.getName();
-        return userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+    public CartController(CartService cartService, SecurityUtils securityUtils) {
+        this.cartService = cartService;
+        this.securityUtils = securityUtils;
     }
 
     @GetMapping
     public ResponseEntity<CartDto> getCart() {
-        Cart cart = cartService.getCartByUser(getCurrentUser());
+        Cart cart = cartService.getCartByUser(securityUtils.getCurrentUser());
         return ResponseEntity.ok(convertToDto(cart));
     }
 
     @PostMapping("/add")
     public ResponseEntity<CartDto> addItemToCart(@RequestParam Long productId, @RequestParam Integer quantity) {
-        Cart cart = cartService.addItemToCart(getCurrentUser(), productId, quantity);
+        Cart cart = cartService.addItemToCart(securityUtils.getCurrentUser(), productId, quantity);
         return ResponseEntity.ok(convertToDto(cart));
     }
 
     @PutMapping("/update")
     public ResponseEntity<CartDto> updateItemQuantity(@RequestParam Long productId, @RequestParam Integer quantity) {
-        Cart cart = cartService.updateItemQuantity(getCurrentUser(), productId, quantity);
+        Cart cart = cartService.updateItemQuantity(securityUtils.getCurrentUser(), productId, quantity);
         return ResponseEntity.ok(convertToDto(cart));
     }
 
     @DeleteMapping("/remove/{productId}")
     public ResponseEntity<CartDto> removeItemFromCart(@PathVariable Long productId) {
-        Cart cart = cartService.removeItemFromCart(getCurrentUser(), productId);
+        Cart cart = cartService.removeItemFromCart(securityUtils.getCurrentUser(), productId);
         return ResponseEntity.ok(convertToDto(cart));
     }
 

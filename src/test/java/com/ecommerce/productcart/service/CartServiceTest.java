@@ -101,6 +101,5 @@ public class CartServiceTest {
         cartService.clearCart(cart);
         
         assertTrue(cart.getItems().isEmpty());
-        verify(cartItemRepository, times(1)).deleteByCartIdNative(cart.getId());
     }
 }

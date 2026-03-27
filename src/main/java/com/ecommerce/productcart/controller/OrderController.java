@@ -3,15 +3,11 @@ package com.ecommerce.productcart.controller;
 import com.ecommerce.productcart.dto.OrderRequest;
 import com.ecommerce.productcart.dto.OrderResponse;
 import com.ecommerce.productcart.model.Order;
-import com.ecommerce.productcart.model.User;
-import com.ecommerce.productcart.repository.UserRepository;
 import com.ecommerce.productcart.service.OrderService;
 import com.ecommerce.productcart.service.PaymentService;
+import com.ecommerce.productcart.util.SecurityUtils;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,25 +18,19 @@ import java.util.stream.Collectors;
 @CrossOrigin(origins = "http://localhost:5173", maxAge = 3600)
 public class OrderController {
 
-    @Autowired
-    private OrderService orderService;
+    private final OrderService orderService;
+    private final PaymentService paymentService;
+    private final SecurityUtils securityUtils;
 
-    @Autowired
-    private PaymentService paymentService;
-
-    @Autowired
-    private UserRepository userRepository;
-
-    private User getCurrentUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String username = authentication.getName();
-        return userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+    public OrderController(OrderService orderService, PaymentService paymentService, SecurityUtils securityUtils) {
+        this.orderService = orderService;
+        this.paymentService = paymentService;
+        this.securityUtils = securityUtils;
     }
 
     @PostMapping("/checkout")
     public ResponseEntity<OrderResponse> checkout(@Valid @RequestBody OrderRequest request) {
-        Order order = orderService.createOrderFromCart(getCurrentUser(), request.getShippingAddress());
+        Order order = orderService.createOrderFromCart(securityUtils.getCurrentUser(), request.getShippingAddress());
         
         try {
             var paymentIntent = paymentService.createPaymentIntent(order);
@@ -54,7 +44,7 @@ public class OrderController {
 
     @GetMapping
     public List<OrderResponse> getUserOrders() {
-        return orderService.getOrdersByUser(getCurrentUser()).stream()
+        return orderService.getOrdersByUser(securityUtils.getCurrentUser()).stream()
                 .map(this::convertToDto)
                 .collect(Collectors.toList());
     }
@@ -63,7 +53,7 @@ public class OrderController {
     public ResponseEntity<OrderResponse> getOrderById(@PathVariable Long id) {
         Order order = orderService.getOrderById(id);
         // Authorization check
-        if (!order.getUser().getId().equals(getCurrentUser().getId())) {
+        if (!order.getUser().getId().equals(securityUtils.getCurrentUser().getId())) {
              return ResponseEntity.status(403).build();
         }
         return ResponseEntity.ok(convertToDto(order));
