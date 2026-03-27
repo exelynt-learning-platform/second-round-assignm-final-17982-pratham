@@ -3,7 +3,6 @@ package com.ecommerce.productcart.controller;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-import com.ecommerce.productcart.dto.LoginRequest;
 import com.ecommerce.productcart.dto.RegisterRequest;
 import com.ecommerce.productcart.model.Cart;
 import com.ecommerce.productcart.model.Role;
