@@ -1,7 +1,10 @@
 package com.ecommerce.productcart.controller;
 
 import com.ecommerce.productcart.model.Cart;
+import com.ecommerce.productcart.model.User;
 import com.ecommerce.productcart.service.CartService;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -14,15 +17,22 @@ public class CartController {
         this.cartService = cartService;
     }
 
-    @PostMapping("/create")
-    public Cart createCart() {
-        return cartService.createCart();
+    @PostMapping("/add")
+    public ResponseEntity<String> addToCart(@AuthenticationPrincipal User user, @RequestParam Long productId, @RequestParam int quantity) {
+        cartService.addToCart(user, productId, quantity);
+        return ResponseEntity.ok("Product added to cart");
     }
 
-    @PostMapping("/add")
-    public Cart addToCart(@RequestParam Long cartId,
-                          @RequestParam Long productId,
-                          @RequestParam int quantity) {
-        return cartService.addToCart(cartId, productId, quantity);
+    @DeleteMapping("/remove/{cartItemId}")
+    public ResponseEntity<String> removeFromCart(@PathVariable Long cartItemId) {
+        cartService.removeFromCart(cartItemId);
+        return ResponseEntity.ok("Product removed from cart");
+    }
+
+    @GetMapping
+    public ResponseEntity<Cart> getCart(@AuthenticationPrincipal User user) {
+        return cartService.getCartByUser(user)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 }

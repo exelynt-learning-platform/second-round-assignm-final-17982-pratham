@@ -1,48 +1,67 @@
 package com.ecommerce.productcart.service;
 
-import com.ecommerce.productcart.model.*;
-import com.ecommerce.productcart.repository.*;
+import com.ecommerce.productcart.model.Cart;
+import com.ecommerce.productcart.model.Order;
+import com.ecommerce.productcart.model.OrderItem;
+import com.ecommerce.productcart.model.User;
+import com.ecommerce.productcart.repository.CartItemRepository;
+import com.ecommerce.productcart.repository.CartRepository;
+import com.ecommerce.productcart.repository.OrderRepository;
+import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class OrderService {
 
     private final CartRepository cartRepository;
     private final OrderRepository orderRepository;
+    private final CartItemRepository cartItemRepository;
 
-    public OrderService(CartRepository cartRepository,
-                        OrderRepository orderRepository) {
+    public OrderService(CartRepository cartRepository, OrderRepository orderRepository, CartItemRepository cartItemRepository) {
         this.cartRepository = cartRepository;
         this.orderRepository = orderRepository;
+        this.cartItemRepository = cartItemRepository;
     }
 
-    public Order placeOrder(Long cartId) {
-
-        Cart cart = cartRepository.findById(cartId)
+    @Transactional
+    public Order placeOrder(User user) {
+        Cart cart = cartRepository.findByUser(user)
                 .orElseThrow(() -> new RuntimeException("Cart not found"));
 
-        Order order = new Order();
-        List<OrderItem> orderItems = new ArrayList<>();
-
-        double total = 0;
-
-        for (CartItem item : cart.getItems()) {
-            OrderItem orderItem = new OrderItem();
-
-            orderItem.setProductName(item.getProduct().getName());
-            orderItem.setQuantity(item.getQuantity());
-            orderItem.setPrice(item.getProduct().getPrice());
-
-            total += item.getQuantity() * item.getProduct().getPrice();
-            orderItems.add(orderItem);
+        if (cart.getItems().isEmpty()) {
+            throw new RuntimeException("Cart is empty");
         }
 
-        order.setItems(orderItems);
-        order.setTotalAmount(total);
+        Order order = new Order();
+        order.setUser(user);
+        order.setTotalAmount(cart.getItems().stream()
+                .mapToDouble(item -> item.getProduct().getPrice() * item.getQuantity())
+                .sum());
 
-        return orderRepository.save(order);
+        List<OrderItem> orderItems = cart.getItems().stream().map(cartItem -> {
+            OrderItem orderItem = new OrderItem();
+            orderItem.setOrder(order);
+            orderItem.setProductName(cartItem.getProduct().getName());
+            orderItem.setQuantity(cartItem.getQuantity());
+            orderItem.setPrice(cartItem.getProduct().getPrice());
+            return orderItem;
+        }).collect(Collectors.toList());
+
+        order.setItems(orderItems);
+        order.setStatus("PAID");
+        Order savedOrder = orderRepository.save(order);
+
+        // Clear cart items
+        cartItemRepository.deleteAll(cart.getItems());
+
+        return savedOrder;
+    }
+
+    public Order getOrderById(Long id) {
+        return orderRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
     }
 }

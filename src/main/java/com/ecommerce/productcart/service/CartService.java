@@ -1,10 +1,16 @@
 package com.ecommerce.productcart.service;
 
-import com.ecommerce.productcart.model.*;
-import com.ecommerce.productcart.repository.*;
+import com.ecommerce.productcart.model.Cart;
+import com.ecommerce.productcart.model.CartItem;
+import com.ecommerce.productcart.model.Product;
+import com.ecommerce.productcart.model.User;
+import com.ecommerce.productcart.repository.CartItemRepository;
+import com.ecommerce.productcart.repository.CartRepository;
+import com.ecommerce.productcart.repository.ProductRepository;
+import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
+import java.util.Optional;
 
 @Service
 public class CartService {
@@ -21,28 +27,31 @@ public class CartService {
         this.cartItemRepository = cartItemRepository;
     }
 
-    public Cart createCart() {
-        Cart cart = new Cart();
-        cart.setItems(new ArrayList<>());
-        return cartRepository.save(cart);
-    }
-
-    public Cart addToCart(Long cartId, Long productId, int quantity) {
-
-        Cart cart = cartRepository.findById(cartId)
-                .orElseThrow(() -> new RuntimeException("Cart not found"));
+    @Transactional
+    public void addToCart(User user, Long productId, int quantity) {
+        Cart cart = cartRepository.findByUser(user)
+                .orElseGet(() -> {
+                    Cart newCart = new Cart();
+                    newCart.setUser(user);
+                    return cartRepository.save(newCart);
+                });
 
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new RuntimeException("Product not found"));
 
-        CartItem item = new CartItem();
-        item.setCart(cart);
-        item.setProduct(product);
-        item.setQuantity(quantity);
+        CartItem cartItem = new CartItem();
+        cartItem.setCart(cart);
+        cartItem.setProduct(product);
+        cartItem.setQuantity(quantity);
+        cartItemRepository.save(cartItem);
+    }
 
-        cartItemRepository.save(item);
-        cart.getItems().add(item);
+    @Transactional
+    public void removeFromCart(Long cartItemId) {
+        cartItemRepository.deleteById(cartItemId);
+    }
 
-        return cartRepository.save(cart);
+    public Optional<Cart> getCartByUser(User user) {
+        return cartRepository.findByUser(user);
     }
 }

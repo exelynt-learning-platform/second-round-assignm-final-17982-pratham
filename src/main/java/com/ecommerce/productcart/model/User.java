@@ -1,6 +1,10 @@
 package com.ecommerce.productcart.model;
 
 import jakarta.persistence.*;
+import java.util.List;
+import java.util.Optional;
+import com.ecommerce.productcart.model.Order;
+import com.ecommerce.productcart.model.Cart;
 
 @Entity
 @Table(name = "users")
@@ -13,6 +17,12 @@ public class User {
     private String username;
     private String password;
     private String role;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+    private List<Order> orders;
+
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
+    private Cart cart;
 
     public User() {}
 
@@ -33,4 +43,10 @@ public class User {
 
     public String getRole() { return role; }
     public void setRole(String role) { this.role = role; }
+
+    public List<Order> getOrders() { return orders; }
+    public void setOrders(List<Order> orders) { this.orders = orders; }
+
+    public Cart getCart() { return cart; }
+    public void setCart(Cart cart) { this.cart = cart; }
 }

@@ -2,7 +2,7 @@ package com.ecommerce.productcart.controller;
 
 import com.ecommerce.productcart.model.User;
 import com.ecommerce.productcart.service.AuthService;
-import com.ecommerce.productcart.security.JwtUtil;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -10,22 +10,20 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
-    private final JwtUtil jwtUtil;
 
-    public AuthController(AuthService authService, JwtUtil jwtUtil) {
+    public AuthController(AuthService authService) {
         this.authService = authService;
-        this.jwtUtil = jwtUtil;
     }
 
     @PostMapping("/register")
-    public User register(@RequestBody User user) {
-        return authService.register(user);
+    public ResponseEntity<String> register(@RequestParam String username, @RequestParam String password, @RequestParam String role) {
+        User user = new User(username, password, role);
+        authService.register(user);
+        return ResponseEntity.ok("User registered successfully");
     }
 
     @PostMapping("/login")
-    public String login(@RequestParam String username,
-                      @RequestParam String password) {
-        User user = authService.login(username, password);
-        return jwtUtil.generateToken(user.getUsername());
+    public ResponseEntity<String> login(@RequestParam String username, @RequestParam String password) {
+        return ResponseEntity.ok(authService.login(username, password));
     }
 }
