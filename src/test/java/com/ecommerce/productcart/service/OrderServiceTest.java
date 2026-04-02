@@ -2,9 +2,13 @@ package com.ecommerce.productcart.service;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
+import com.ecommerce.productcart.dto.OrderResponse;
+import com.ecommerce.productcart.exception.InsufficientStockException;
+import com.stripe.model.PaymentIntent;
 
 import com.ecommerce.productcart.model.*;
 import com.ecommerce.productcart.repository.OrderRepository;
+import com.ecommerce.productcart.repository.ProductRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,6 +28,12 @@ public class OrderServiceTest {
 
     @Mock
     private CartService cartService;
+
+    @Mock
+    private ProductRepository productRepository;
+
+    @Mock
+    private PaymentService paymentService;
 
     @InjectMocks
     private OrderService orderService;
@@ -53,14 +63,23 @@ public class OrderServiceTest {
     }
 
     @Test
-    void testCreateOrderFromCart_Success() {
+    void testCreateOrderFromCart_Success() throws Exception {
         when(cartService.getCartByUser(user)).thenReturn(cart);
-        when(orderRepository.save(any(Order.class))).thenAnswer(i -> i.getArguments()[0]);
+        when(orderRepository.save(any(Order.class))).thenAnswer(i -> {
+            Order o = (Order) i.getArguments()[0];
+            o.setId(1L);
+            return o;
+        });
 
-        Order order = orderService.createOrderFromCart(user, "123 Street");
+        PaymentIntent paymentIntent = mock(PaymentIntent.class);
+        when(paymentIntent.getClientSecret()).thenReturn("pi_test_secret");
+        when(paymentService.createPaymentIntent(any(Order.class))).thenReturn(paymentIntent);
 
-        assertNotNull(order);
-        assertEquals(new BigDecimal("200.00"), order.getTotalAmount());
+        OrderResponse response = orderService.createOrderFromCart(user, "123 Street");
+
+        assertNotNull(response);
+        assertEquals(new BigDecimal("200.00"), response.getTotalAmount());
+        assertEquals("pi_test_secret", response.getClientSecret());
         assertEquals(8, product.getStockQuantity()); // Stock deducted
         verify(cartService).clearCart(cart);
     }
@@ -70,7 +89,7 @@ public class OrderServiceTest {
         product.setStockQuantity(1); // Only 1 in stock, but cart asks for 2
         when(cartService.getCartByUser(user)).thenReturn(cart);
 
-        assertThrows(RuntimeException.class, () -> {
+        assertThrows(InsufficientStockException.class, () -> {
             orderService.createOrderFromCart(user, "123 Street");
         });
     }

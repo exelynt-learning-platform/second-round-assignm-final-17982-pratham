@@ -16,6 +16,18 @@ public class GlobalExceptionHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<MessageResponse> handleResourceNotFound(ResourceNotFoundException e) {
+        logger.error("Resource not found: {}", e.getMessage());
+        return new ResponseEntity<>(new MessageResponse(e.getMessage()), HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(InsufficientStockException.class)
+    public ResponseEntity<MessageResponse> handleInsufficientStock(InsufficientStockException e) {
+        logger.error("Stock error: {}", e.getMessage());
+        return new ResponseEntity<>(new MessageResponse(e.getMessage()), HttpStatus.BAD_REQUEST);
+    }
+
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<MessageResponse> handleRuntimeException(RuntimeException e) {
         logger.error("Runtime error: {}", e.getMessage());

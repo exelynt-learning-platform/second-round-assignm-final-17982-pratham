@@ -1,9 +1,12 @@
 package com.ecommerce.productcart.service;
 
+import com.ecommerce.productcart.dto.OrderResponse;
 import com.ecommerce.productcart.model.*;
 import com.ecommerce.productcart.repository.OrderRepository;
 import com.ecommerce.productcart.repository.ProductRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.stripe.exception.StripeException;
+import com.ecommerce.productcart.exception.ResourceNotFoundException;
+import com.ecommerce.productcart.exception.InsufficientStockException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,18 +23,23 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final CartService cartService;
     private final ProductRepository productRepository;
+    private final PaymentService paymentService;
 
-    public OrderService(OrderRepository orderRepository, CartService cartService, ProductRepository productRepository) {
+    public OrderService(OrderRepository orderRepository, 
+                        CartService cartService, 
+                        ProductRepository productRepository,
+                        PaymentService paymentService) {
         this.orderRepository = orderRepository;
         this.cartService = cartService;
         this.productRepository = productRepository;
+        this.paymentService = paymentService;
     }
 
     @Transactional
-    public Order createOrderFromCart(User user, String shippingAddress) {
+    public OrderResponse createOrderFromCart(User user, String shippingAddress) throws StripeException {
         Cart cart = cartService.getCartByUser(user);
-        if (cart.getItems() == null || cart.getItems().isEmpty()) {
-            throw new RuntimeException("Cannot create order from empty cart");
+        if (cart == null || cart.getItems() == null || cart.getItems().isEmpty()) {
+            throw new InsufficientStockException("Cannot create order from empty cart");
         }
 
         // Calculate Order Essentials
@@ -52,7 +60,7 @@ public class OrderService {
                 .map(cartItem -> {
                     Product product = cartItem.getProduct();
                     if (product.getStockQuantity() < cartItem.getQuantity()) {
-                        throw new RuntimeException("Insufficient stock for product: " + product.getName());
+                        throw new InsufficientStockException("Insufficient stock for product: " + product.getName());
                     }
                     product.setStockQuantity(product.getStockQuantity() - cartItem.getQuantity());
                     productRepository.save(product);
@@ -71,8 +79,33 @@ public class OrderService {
         // Process state transition before final save
         cartService.clearCart(cart);
 
-        // Save and return
-        return orderRepository.save(order);
+        // Save
+        Order savedOrder = orderRepository.save(order);
+
+        // Process Payment Intent
+        var paymentIntent = paymentService.createPaymentIntent(savedOrder);
+        
+        OrderResponse response = convertToDto(savedOrder);
+        response.setClientSecret(paymentIntent.getClientSecret());
+        
+        return response;
+    }
+
+    public OrderResponse convertToDto(Order order) {
+        return OrderResponse.builder()
+                .id(order.getId())
+                .orderDate(order.getOrderDate())
+                .totalAmount(order.getTotalAmount())
+                .status(order.getStatus().name())
+                .shippingAddress(order.getShippingAddress())
+                .items(order.getItems().stream()
+                        .map(item -> OrderResponse.OrderItemDto.builder()
+                                .productName(item.getProduct().getName())
+                                .quantity(item.getQuantity())
+                                .price(item.getPriceAtPurchase())
+                                .build())
+                        .collect(Collectors.toList()))
+                .build();
     }
 
     public List<Order> getOrdersByUser(User user) {
@@ -81,7 +114,7 @@ public class OrderService {
 
     public Order getOrderById(Long id) {
         return orderRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Order not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + id));
     }
 
     @Transactional

@@ -31,4 +31,6 @@ public class Product {
     private Integer stockQuantity;
 
     private String imageUrl;
+    @Version
+    private Integer version;
 }

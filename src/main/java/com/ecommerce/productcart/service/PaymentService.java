@@ -18,9 +18,12 @@ public class PaymentService {
     @Value("${stripe.api.key}")
     private String stripeApiKey;
 
-    public PaymentIntent createPaymentIntent(Order order) throws StripeException {
+    @jakarta.annotation.PostConstruct
+    public void init() {
         Stripe.apiKey = stripeApiKey;
+    }
 
+    public PaymentIntent createPaymentIntent(Order order) throws StripeException {
         // Stripe works in cents, so we multiply by 100
         long amountInCents = order.getTotalAmount().multiply(new BigDecimal(100)).longValue();
 

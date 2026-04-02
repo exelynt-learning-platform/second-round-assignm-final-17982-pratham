@@ -12,6 +12,7 @@ import com.ecommerce.productcart.repository.RoleRepository;
 import com.ecommerce.productcart.repository.UserRepository;
 import com.ecommerce.productcart.security.JwtUtils;
 import com.ecommerce.productcart.security.UserDetailsImpl;
+import com.ecommerce.productcart.exception.ResourceNotFoundException;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -103,13 +104,13 @@ public class AuthController {
             roles.add(userRole);
         } else {
             strRoles.forEach(role -> {
-                if (Role.RoleType.ROLE_ADMIN.name().equalsIgnoreCase(role)) {
+                if (Role.RoleType.ROLE_ADMIN.name().equalsIgnoreCase(role) || "admin".equalsIgnoreCase(role)) {
                     Role adminRole = roleRepository.findByName(Role.RoleType.ROLE_ADMIN)
-                            .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
+                            .orElseThrow(() -> new ResourceNotFoundException("Error: Role is not found."));
                     roles.add(adminRole);
                 } else {
                     Role userRole = roleRepository.findByName(Role.RoleType.ROLE_USER)
-                            .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
+                            .orElseThrow(() -> new ResourceNotFoundException("Error: Role is not found."));
                     roles.add(userRole);
                 }
             });

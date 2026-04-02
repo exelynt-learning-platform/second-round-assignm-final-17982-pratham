@@ -4,7 +4,6 @@ import com.ecommerce.productcart.dto.OrderRequest;
 import com.ecommerce.productcart.dto.OrderResponse;
 import com.ecommerce.productcart.model.Order;
 import com.ecommerce.productcart.service.OrderService;
-import com.ecommerce.productcart.service.PaymentService;
 import com.ecommerce.productcart.util.SecurityUtils;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -19,23 +18,17 @@ import java.util.stream.Collectors;
 public class OrderController {
 
     private final OrderService orderService;
-    private final PaymentService paymentService;
     private final SecurityUtils securityUtils;
 
-    public OrderController(OrderService orderService, PaymentService paymentService, SecurityUtils securityUtils) {
+    public OrderController(OrderService orderService, SecurityUtils securityUtils) {
         this.orderService = orderService;
-        this.paymentService = paymentService;
         this.securityUtils = securityUtils;
     }
 
     @PostMapping("/checkout")
     public ResponseEntity<OrderResponse> checkout(@Valid @RequestBody OrderRequest request) {
-        Order order = orderService.createOrderFromCart(securityUtils.getCurrentUser(), request.getShippingAddress());
-        
         try {
-            var paymentIntent = paymentService.createPaymentIntent(order);
-            OrderResponse response = convertToDto(order);
-            response.setClientSecret(paymentIntent.getClientSecret());
+            OrderResponse response = orderService.createOrderFromCart(securityUtils.getCurrentUser(), request.getShippingAddress());
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.internalServerError().build();
@@ -45,7 +38,7 @@ public class OrderController {
     @GetMapping
     public List<OrderResponse> getUserOrders() {
         return orderService.getOrdersByUser(securityUtils.getCurrentUser()).stream()
-                .map(this::convertToDto)
+                .map(orderService::convertToDto)
                 .collect(Collectors.toList());
     }
 
@@ -56,23 +49,6 @@ public class OrderController {
         if (!order.getUser().getId().equals(securityUtils.getCurrentUser().getId())) {
              return ResponseEntity.status(403).build();
         }
-        return ResponseEntity.ok(convertToDto(order));
-    }
-
-    private OrderResponse convertToDto(Order order) {
-        return OrderResponse.builder()
-                .id(order.getId())
-                .orderDate(order.getOrderDate())
-                .totalAmount(order.getTotalAmount())
-                .status(order.getStatus().name())
-                .shippingAddress(order.getShippingAddress())
-                .items(order.getItems().stream()
-                        .map(item -> OrderResponse.OrderItemDto.builder()
-                                .productName(item.getProduct().getName())
-                                .quantity(item.getQuantity())
-                                .price(item.getPriceAtPurchase())
-                                .build())
-                        .collect(Collectors.toList()))
-                .build();
+        return ResponseEntity.ok(orderService.convertToDto(order));
     }
 }

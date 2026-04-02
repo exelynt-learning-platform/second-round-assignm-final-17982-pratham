@@ -8,6 +8,7 @@ import com.ecommerce.productcart.repository.CartItemRepository;
 import com.ecommerce.productcart.repository.CartRepository;
 import com.ecommerce.productcart.repository.ProductRepository;
 import com.ecommerce.productcart.repository.UserRepository;
+import com.ecommerce.productcart.dto.CartDto;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -72,10 +73,11 @@ public class CartServiceTest {
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
         when(cartRepository.save(any(Cart.class))).thenAnswer(i -> i.getArguments()[0]);
 
-        Cart result = cartService.addItemToCart(user, 1L, 2);
+        CartDto result = cartService.addItemToCart(user, 1L, 2);
 
         assertNotNull(result);
         assertEquals(1, result.getItems().size());
+        assertEquals(product.getName(), result.getItems().get(0).getProductName());
         verify(cartItemRepository, times(1)).save(any(CartItem.class));
     }
 
@@ -87,10 +89,10 @@ public class CartServiceTest {
         when(cartRepository.findByUser(user)).thenReturn(Optional.of(cart));
         when(cartRepository.save(any(Cart.class))).thenAnswer(i -> i.getArguments()[0]);
 
-        Cart result = cartService.updateItemQuantity(user, 1L, 5);
+        CartDto result = cartService.updateItemQuantity(user, 1L, 5);
 
         assertNotNull(result);
-        assertEquals(5, cart.getItems().iterator().next().getQuantity());
+        assertEquals(5, result.getItems().get(0).getQuantity());
         verify(cartItemRepository, times(1)).save(cartItem);
     }
     

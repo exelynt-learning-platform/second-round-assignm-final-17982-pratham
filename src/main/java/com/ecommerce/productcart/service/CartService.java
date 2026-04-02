@@ -1,15 +1,20 @@
 package com.ecommerce.productcart.service;
 
+import com.ecommerce.productcart.dto.CartDto;
+import com.ecommerce.productcart.dto.CartItemDto;
 import com.ecommerce.productcart.model.*;
 import com.ecommerce.productcart.repository.CartItemRepository;
 import com.ecommerce.productcart.repository.CartRepository;
 import com.ecommerce.productcart.repository.ProductRepository;
-import com.ecommerce.productcart.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.ecommerce.productcart.exception.InsufficientStockException;
+import com.ecommerce.productcart.exception.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class CartService {
@@ -17,16 +22,13 @@ public class CartService {
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
     private final ProductRepository productRepository;
-    private final UserRepository userRepository;
 
     public CartService(CartRepository cartRepository, 
                        CartItemRepository cartItemRepository, 
-                       ProductRepository productRepository, 
-                       UserRepository userRepository) {
+                       ProductRepository productRepository) {
         this.cartRepository = cartRepository;
         this.cartItemRepository = cartItemRepository;
         this.productRepository = productRepository;
-        this.userRepository = userRepository;
     }
 
     public Cart getCartByUser(User user) {
@@ -38,10 +40,14 @@ public class CartService {
     }
 
     @Transactional
-    public Cart addItemToCart(User user, Long productId, Integer quantity) {
+    public CartDto addItemToCart(User user, Long productId, Integer quantity) {
         Cart cart = getCartByUser(user);
         Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new RuntimeException("Product not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+
+        if (product.getStockQuantity() < quantity) {
+            throw new InsufficientStockException("Not enough stock available");
+        }
 
         // Check if item already exists in cart
         Optional<CartItem> existingItem = cart.getItems().stream()
@@ -62,16 +68,17 @@ public class CartService {
             cartItemRepository.save(cartItem);
         }
 
-        return cartRepository.save(cart);
+        cartRepository.save(cart);
+        return getCartDto(user);
     }
 
     @Transactional
-    public Cart updateItemQuantity(User user, Long productId, Integer quantity) {
+    public CartDto updateItemQuantity(User user, Long productId, Integer quantity) {
         Cart cart = getCartByUser(user);
         CartItem cartItem = cart.getItems().stream()
                 .filter(item -> item.getProduct().getId().equals(productId))
                 .findFirst()
-                .orElseThrow(() -> new RuntimeException("Item not in cart"));
+                .orElseThrow(() -> new ResourceNotFoundException("Item not in cart"));
 
         if (quantity <= 0) {
             cart.removeItem(cartItem);
@@ -80,20 +87,47 @@ public class CartService {
             cartItemRepository.save(cartItem);
         }
 
-        return cartRepository.save(cart);
+        cartRepository.save(cart);
+        return getCartDto(user);
     }
 
     @Transactional
-    public Cart removeItemFromCart(User user, Long productId) {
+    public CartDto removeItemFromCart(User user, Long productId) {
         Cart cart = getCartByUser(user);
         CartItem cartItem = cart.getItems().stream()
                 .filter(item -> item.getProduct().getId().equals(productId))
                 .findFirst()
-                .orElseThrow(() -> new RuntimeException("Item not in cart"));
+                .orElseThrow(() -> new ResourceNotFoundException("Item not in cart"));
 
         cart.removeItem(cartItem);
 
-        return cartRepository.save(cart);
+        cartRepository.save(cart);
+        return getCartDto(user);
+    }
+
+    public CartDto getCartDto(User user) {
+        Cart cart = getCartByUser(user);
+        return convertToDto(cart);
+    }
+
+    private CartDto convertToDto(Cart cart) {
+        List<CartItemDto> itemDtos = cart.getItems().stream()
+                .map(item -> CartItemDto.builder()
+                        .productId(item.getProduct().getId())
+                        .productName(item.getProduct().getName())
+                        .price(item.getProduct().getPrice())
+                        .quantity(item.getQuantity())
+                        .build())
+                .collect(Collectors.toList());
+
+        BigDecimal total = itemDtos.stream()
+                .map(item -> item.getPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return CartDto.builder()
+                .items(itemDtos)
+                .totalPrice(total)
+                .build();
     }
 
     @Transactional
